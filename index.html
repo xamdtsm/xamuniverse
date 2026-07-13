@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARCHIVE — A Universe of Notes</title>
+<meta name="description" content="A personal knowledge archive linking out to Google Drive notes, organized by topic.">
+
+<!-- ══════════════════════════════════════════════════════════════════
+     FONTS
+     Anton      → the big noir/poster headline face
+     Space Mono → typewriter / case-file / terminal body face
+════════════════════════════════════════════════════════════════════ -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+
+<style>
+  /* ══════════════════════════════════════════════════════════════
+     TOKENS — change these six values and the whole site re-tones.
+  ═══════════════════════════════════════════════════════════════ */
+  :root{
+    --void:   #030303;              /* deep space background        */
+    --ink:    #0d0d0e;              /* card / panel surface          */
+    --ink-2:  #131314;              /* raised surface (hover)        */
+    --paper:  #ece9e1;              /* primary text (moon-white)     */
+    --dim:    #8b8a86;              /* secondary text                */
+    --line:   rgba(236,233,225,.14);/* hairline borders              */
+    --halo:   rgba(255,255,255,.85);/* glow / accent (pure light)    */
+    --shadow: rgba(0,0,0,.6);
+
+    --display: 'Anton', sans-serif;
+    --mono: 'Space Mono', monospace;
+  }
+
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+
+  body{
+    margin:0;
+    background:var(--void);
+    color:var(--paper);
+    font-family:var(--mono);
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     BACKGROUND LAYERS — starfield canvas + halftone ink grain
+  ═══════════════════════════════════════════════════════════════ */
+  #stars{
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+  }
+
+  .grain{
+    position:fixed; inset:0; z-index:1; pointer-events:none;
+    opacity:.05; mix-blend-mode:overlay;
+    background-image:
+      radial-gradient(circle at 1px 1px, #fff 1px, transparent 0);
+    background-size: 3px 3px;
+  }
+
+  .vignette{
+    position:fixed; inset:0; z-index:1; pointer-events:none;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,.75) 100%);
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     LAYOUT SHELL
+  ═══════════════════════════════════════════════════════════════ */
+  .wrap{
+    position:relative; z-index:2;
+    max-width:1180px;
+    margin:0 auto;
+    padding: 0 28px 120px;
+  }
+
+  /* ---------- HERO ---------- */
+  header.hero{
+    padding: 110px 0 70px;
+    text-align:center;
+    position:relative;
+  }
+
+  .eyebrow{
+    font-size:12px;
+    letter-spacing:.45em;
+    text-transform:uppercase;
+    color:var(--dim);
+    margin-bottom:22px;
+  }
+
+  .eyebrow::before{ content:"⁂  "; }
+  .eyebrow::after{ content:"  ⁂"; }
+
+  h1.title{
+    font-family:var(--display);
+    font-weight:400;
+    font-size:clamp(48px, 9vw, 118px);
+    line-height:.92;
+    letter-spacing:.01em;
+    margin:0;
+    text-transform:uppercase;
+    color:var(--paper);
+    text-shadow: 0 0 40px rgba(255,255,255,.18);
+  }
+
+  h1.title span{
+    display:block;
+    -webkit-text-stroke: 1.5px var(--paper);
+    color:transparent;
+    text-shadow:none;
+  }
+
+  .subtitle{
+    max-width:560px;
+    margin: 26px auto 0;
+    font-size:14px;
+    line-height:1.8;
+    color:var(--dim);
+  }
+
+  .subtitle em{
+    color:var(--paper);
+    font-style:normal;
+    border-bottom:1px dashed var(--line);
+  }
+
+  /* ---------- CONTROLS ---------- */
+  .controls{
+    display:flex;
+    gap:14px;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    margin: 0 0 46px;
+    padding-bottom:22px;
+    border-bottom:1px solid var(--line);
+  }
+
+  .search-box{
+    flex:1;
+    min-width:240px;
+    position:relative;
+  }
+
+  .search-box input{
+    width:100%;
+    background:var(--ink);
+    border:1px solid var(--line);
+    color:var(--paper);
+    font-family:var(--mono);
+    font-size:13px;
+    padding:14px 16px 14px 38px;
+    letter-spacing:.03em;
+    transition:border-color .2s, background .2s;
+  }
+
+  .search-box::before{
+    content:"◎";
+    position:absolute;
+    left:14px; top:50%;
+    transform:translateY(-50%);
+    color:var(--dim);
+    font-size:13px;
+  }
+
+  .search-box input:focus{
+    outline:none;
+    border-color:var(--halo);
+    background:var(--ink-2);
+  }
+
+  .search-box input::placeholder{ color:var(--dim); }
+
+  .stat{
+    font-size:11px;
+    letter-spacing:.2em;
+    text-transform:uppercase;
+    color:var(--dim);
+    white-space:nowrap;
+  }
+
+  .stat b{ color:var(--paper); font-weight:700; }
+
+  /* ---------- TOPIC GRID ---------- */
+  .grid{
+    display:grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap:2px;
+    background:var(--line);
+    border:1px solid var(--line);
+  }
+
+  .card{
+    background:var(--ink);
+    padding:26px 26px 24px;
+    cursor:pointer;
+    position:relative;
+    transition:background .25s ease;
+  }
+
+  .card:hover, .card.open{
+    background:var(--ink-2);
+  }
+
+  .card-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:12px;
+  }
+
+  .case-no{
+    font-size:11px;
+    color:var(--dim);
+    letter-spacing:.15em;
+  }
+
+  .card-icon{
+    font-size:11px;
+    color:var(--dim);
+    transition:transform .3s ease;
+    border:1px solid var(--line);
+    width:22px; height:22px;
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+
+  .card.open .card-icon{ transform:rotate(45deg); color:var(--paper); border-color:var(--paper); }
+
+  .card h3{
+    font-family:var(--display);
+    font-weight:400;
+    text-transform:uppercase;
+    font-size:26px;
+    letter-spacing:.01em;
+    margin: 16px 0 6px;
+    color:var(--paper);
+  }
+
+  .card p.desc{
+    font-size:12.5px;
+    line-height:1.7;
+    color:var(--dim);
+    margin:0 0 14px;
+    min-height:18px;
+  }
+
+  .card .count{
+    font-size:10.5px;
+    letter-spacing:.2em;
+    text-transform:uppercase;
+    color:var(--dim);
+    border-top:1px solid var(--line);
+    padding-top:12px;
+    display:inline-block;
+  }
+
+  /* ---------- EXPANDED LINK PANEL ---------- */
+  .panel{
+    max-height:0;
+    overflow:hidden;
+    transition:max-height .4s ease;
+  }
+
+  .card.open .panel{
+    max-height:1200px;
+    transition:max-height .55s ease;
+  }
+
+  .panel-inner{
+    margin-top:18px;
+    padding-top:4px;
+  }
+
+  a.link-row{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:11px 4px;
+    text-decoration:none;
+    color:var(--paper);
+    border-top:1px solid var(--line);
+    font-size:12.5px;
+    transition:padding-left .2s ease, color .2s ease;
+  }
+
+  a.link-row:hover{
+    padding-left:8px;
+    color:var(--halo);
+  }
+
+  a.link-row:hover .link-title{ text-decoration:underline; text-underline-offset:3px; }
+
+  .link-glyph{
+    color:var(--dim);
+    font-size:13px;
+    flex-shrink:0;
+  }
+
+  .link-title{ flex:1; line-height:1.5; }
+
+  .link-arrow{
+    color:var(--dim);
+    font-size:14px;
+    transform:translateX(0);
+    transition:transform .2s ease;
+  }
+
+  a.link-row:hover .link-arrow{ transform:translateX(3px); color:var(--paper); }
+
+  .empty-note{
+    font-size:12px;
+    color:var(--dim);
+    font-style:italic;
+    padding:14px 4px;
+    border-top:1px solid var(--line);
+  }
+
+  /* ---------- NO RESULTS ---------- */
+  #no-results{
+    display:none;
+    text-align:center;
+    padding:80px 20px;
+    color:var(--dim);
+    font-size:13px;
+    letter-spacing:.1em;
+  }
+
+  /* ---------- FOOTER ---------- */
+  footer{
+    text-align:center;
+    margin-top:90px;
+    padding-top:26px;
+    border-top:1px solid var(--line);
+    color:var(--dim);
+    font-size:11px;
+    letter-spacing:.2em;
+    text-transform:uppercase;
+  }
+
+  /* ---------- SCROLLBAR (webkit) ---------- */
+  ::-webkit-scrollbar{ width:9px; }
+  ::-webkit-scrollbar-track{ background:var(--void); }
+  ::-webkit-scrollbar-thumb{ background:var(--ink-2); border:1px solid var(--line); }
+
+  /* ---------- RESPONSIVE ---------- */
+  @media (max-width:560px){
+    header.hero{ padding:80px 0 50px; }
+    .grid{ grid-template-columns:1fr; }
+    .controls{ flex-direction:column; align-items:stretch; }
+  }
+
+  /* ---------- ACCESSIBILITY ---------- */
+  a:focus-visible, input:focus-visible, .card:focus-visible{
+    outline: 2px solid var(--halo);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation:none !important; transition:none !important; scroll-behavior:auto !important; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+<div class="grain"></div>
+<div class="vignette"></div>
+
+<div class="wrap">
+
+  <header class="hero">
+    <div class="eyebrow">a personal knowledge archive</div>
+    <h1 class="title">EVERY<span>THOUGHT</span>MAPPED</h1>
+    <p class="subtitle">
+      A constellation of notes, each star a folder pulled from
+      <em>Google Drive</em>. Click a topic to open the case file.
+    </p>
+  </header>
+
+  <div class="controls">
+    <div class="search-box">
+      <input id="searchInput" type="text" placeholder="search a topic or a note title…" autocomplete="off">
+    </div>
+    <div class="stat"><b id="topicCount">0</b> topics · <b id="linkCount">0</b> notes filed</div>
+  </div>
+
+  <div class="grid" id="grid"><!-- topic cards render here --></div>
+
+  <div id="no-results">— no matching case files in this archive —</div>
+
+  <footer>Archive last edited by hand · built for the dark between the stars</footer>
+
+</div>
+
+<script>
+/* ════════════════════════════════════════════════════════════════════
+   YOUR DATA — THIS IS THE ONLY SECTION YOU NEED TO TOUCH
+   ------------------------------------------------------------------
+   Add a new TOPIC by copying one of the objects below.
+   Add a new NOTE inside a topic by copying one line inside "links".
+
+   {
+     title: "Topic name shown on the card",
+     desc:  "One short line describing this topic (optional, can be '')",
+     links: [
+       { title: "Name of the note / file", url: "https://drive.google.com/..." },
+       { title: "Another note in this topic", url: "https://drive.google.com/..." }
+     ]
+   }
+
+   • Order in this array = order shown on the page.
+   • An empty links array (links: []) is fine — the card will just say
+     the case file is empty until you add notes.
+   • Keep the commas between objects and between link entries.
+════════════════════════════════════════════════════════════════════ */
+const TOPICS = [
+  {
+    title: "Philosophy",
+    desc: "Ideas that keep circling back at 2am.",
+    links: [
+      { title: "Stoicism — reading notes",        url: "https://drive.google.com/drive/folders/REPLACE_ME" },
+      { title: "Existentialism summary",          url: "https://drive.google.com/drive/folders/REPLACE_ME" },
+      { title: "Ethics lecture transcript",        url: "https://drive.google.com/drive/folders/REPLACE_ME" }
+    ]
+  },
+  {
+    title: "Computer Science",
+    desc: "Algorithms, systems, and things that compile.",
+    links: [
+      { title: "Data Structures — full notes",     url: "https://drive.google.com/drive/folders/REPLACE_ME" },
+      { title: "System Design cheatsheet",         url: "https://drive.google.com/drive/folders/REPLACE_ME" }
+    ]
+  },
+  {
+    title: "Physics",
+    desc: "The universe, in equations.",
+    links: [
+      { title: "Quantum Mechanics — chapter 1-4",  url: "https://drive.google.com/drive/folders/REPLACE_ME" },
+      { title: "Thermodynamics problem sets",       url: "https://drive.google.com/drive/folders/REPLACE_ME" },
+      { title: "Relativity — visual notes",         url: "https://drive.google.com/drive/folders/REPLACE_ME" }
+    ]
+  },
+  {
+    title: "Writing",
+    desc: "Drafts, outlines, half-finished thoughts.",
+    links: [
+      { title: "Essay drafts — folder",             url: "https://drive.google.com/drive/folders/REPLACE_ME" }
+    ]
+  },
+  {
+    title: "Finance",
+    desc: "Numbers I'm trying to understand better.",
+    links: []
+  },
+  {
+    title: "Random Sparks",
+    desc: "Ideas with no home yet.",
+    links: [
+      { title: "Voice memos transcribed",           url: "https://drive.google.com/drive/folders/REPLACE_ME" },
+      { title: "App ideas doc",                     url: "https://drive.google.com/drive/folders/REPLACE_ME" }
+    ]
+  }
+];
+/* ═══════════════════════════════ END OF DATA ═══════════════════════ */
+
+
+/* ════════════════════════════════════════════════════════════════════
+   RENDER ENGINE — you shouldn't need to edit anything below this line.
+════════════════════════════════════════════════════════════════════ */
+const grid = document.getElementById('grid');
+const noResults = document.getElementById('no-results');
+const topicCountEl = document.getElementById('topicCount');
+const linkCountEl = document.getElementById('linkCount');
+
+function escapeHTML(str){
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function buildCard(topic, index){
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.tabIndex = 0;
+  card.setAttribute('role','button');
+  card.setAttribute('aria-expanded','false');
+
+  const num = String(index + 1).padStart(3, '0');
+
+  const linksHTML = topic.links.length
+    ? topic.links.map(l => `
+        <a class="link-row" href="${escapeHTML(l.url)}" target="_blank" rel="noopener noreferrer">
+          <span class="link-glyph">✎</span>
+          <span class="link-title">${escapeHTML(l.title)}</span>
+          <span class="link-arrow">→</span>
+        </a>`).join('')
+    : `<div class="empty-note">— case file empty, nothing filed here yet —</div>`;
+
+  card.innerHTML = `
+    <div class="card-top">
+      <span class="case-no">CASE Nº ${num}</span>
+      <span class="card-icon">+</span>
+    </div>
+    <h3>${escapeHTML(topic.title)}</h3>
+    <p class="desc">${escapeHTML(topic.desc || '')}</p>
+    <span class="count">${topic.links.length} note${topic.links.length === 1 ? '' : 's'} filed</span>
+    <div class="panel"><div class="panel-inner">${linksHTML}</div></div>
+  `;
+
+  function toggle(){
+    const isOpen = card.classList.toggle('open');
+    card.setAttribute('aria-expanded', String(isOpen));
+  }
+
+  card.addEventListener('click', (e) => {
+    if (e.target.closest('a.link-row')) return; // let link clicks pass through
+    toggle();
+  });
+  card.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+  });
+
+  return card;
+}
+
+function render(filterText){
+  const q = (filterText || '').trim().toLowerCase();
+  grid.innerHTML = '';
+  let totalLinks = 0;
+  let shown = 0;
+
+  TOPICS.forEach((topic, i) => {
+    totalLinks += topic.links.length;
+
+    const matchesTopic = topic.title.toLowerCase().includes(q);
+    const matchingLinks = topic.links.filter(l => l.title.toLowerCase().includes(q));
+    const isMatch = q === '' || matchesTopic || matchingLinks.length > 0;
+
+    if (!isMatch) return;
+    shown++;
+
+    // when searching by note title, show a filtered view of just those links
+    const topicToRender = (q !== '' && !matchesTopic)
+      ? { ...topic, links: matchingLinks }
+      : topic;
+
+    const card = buildCard(topicToRender, i);
+    if (q !== '') card.classList.add('open'); // auto-expand while searching
+    grid.appendChild(card);
+  });
+
+  noResults.style.display = shown === 0 ? 'block' : 'none';
+  topicCountEl.textContent = TOPICS.length;
+  linkCountEl.textContent = totalLinks;
+}
+
+document.getElementById('searchInput').addEventListener('input', (e) => render(e.target.value));
+
+render('');
+
+
+/* ════════════════════════════════════════════════════════════════════
+   STARFIELD — ambient constellation background (canvas, no dependencies)
+════════════════════════════════════════════════════════════════════ */
+(function(){
+  const canvas = document.getElementById('stars');
+  const ctx = canvas.getContext('2d');
+  let w, h, stars = [];
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function resize(){
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = document.documentElement.scrollHeight;
+    const density = Math.min(180, Math.floor((w * h) / 9000));
+    stars = Array.from({length: density}, () => ({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      r: Math.random() * 1.3 + 0.3,
+      baseAlpha: Math.random() * 0.6 + 0.2,
+      twinkleSpeed: Math.random() * 0.02 + 0.005,
+      phase: Math.random() * Math.PI * 2
+    }));
+  }
+
+  function linkNearby(){
+    // faint constellation lines between close stars — the "web" motif
+    ctx.strokeStyle = 'rgba(236,233,225,0.06)';
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i < stars.length; i++){
+      for (let j = i + 1; j < stars.length; j++){
+        const a = stars[i], b = stars[j];
+        const dx = a.x - b.x, dy = a.y - b.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < 110){
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+        }
+      }
+    }
+  }
+
+  let t = 0;
+  function frame(){
+    ctx.clearRect(0, 0, w, h);
+    linkNearby();
+    stars.forEach(s => {
+      const a = reduceMotion ? s.baseAlpha : s.baseAlpha + Math.sin(t * s.twinkleSpeed + s.phase) * 0.25;
+      ctx.beginPath();
+      ctx.fillStyle = `rgba(236,233,225,${Math.max(0, a)})`;
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    t++;
+    if (!reduceMotion) requestAnimationFrame(frame);
+  }
+
+  window.addEventListener('resize', resize);
+  resize();
+  frame();
+  if (reduceMotion) frame(); // draw once, static
+})();
+</script>
+
+</body>
+</html>
